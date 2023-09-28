@@ -1,11 +1,10 @@
 # Python program to generate WordCloud
 import json
 import os
-import re
 import matplotlib.pyplot as plt
 import pandas as pd
-from itertools import chain
 from wordcloud import WordCloud, STOPWORDS
+from utils import flatten, remove_punctuation
 
 TEXT_FIELD = "text"
 HEAD_TEXT_FIELD = "head_text"
@@ -18,18 +17,18 @@ directory_path = "../dataset"
 
 #    This function returns a list of words from a file
 def get_words_from_file(file):
-    data = list(chain.from_iterable(json.load(file)))
+    data = flatten(json.load(file))
     words = []
 
     for row in data:
         if CHARACTER_FIELD not in row[HEAD_TEXT_FIELD]:
             continue
         subj = row[HEAD_TEXT_FIELD][CHARACTER_FIELD]
-        text = re.sub(r'[.,!?]', '', row[TEXT_FIELD].lower())  # Remove punctuation
+        text = remove_punctuation(row[TEXT_FIELD].lower())  # Remove punctuation
         if subj is not None and len(text) > 0:
             words.append(text.split(" "))
 
-    return list(chain.from_iterable(words))
+    return flatten(words)
 
 
 #    This function plots a cloud of words from a list of words
@@ -79,7 +78,7 @@ def cloud_of_words(directory):
                     words = get_words_from_file(f)
                     total_words.append(words)
 
-            total_words = list(chain.from_iterable(total_words))
+            total_words = flatten(total_words)
 
             plot_cloud(total_words, current_dir)
 

@@ -1,9 +1,10 @@
 import json
 import os
-import re
 from itertools import chain
 
 from matplotlib import pyplot as plt
+
+from utils import flatten, remove_punctuation, average, round_list
 
 TEXT_FIELD = "text"
 HEAD_TEXT_FIELD = "head_text"
@@ -18,7 +19,7 @@ def get_dialogs_from_file(file):
         if CHARACTER_FIELD not in row[HEAD_TEXT_FIELD]:
             continue
         subj = row[HEAD_TEXT_FIELD][CHARACTER_FIELD]
-        text = re.sub(r'[.,!?]', '', row[TEXT_FIELD].lower())  # Remove punctuation
+        text = remove_punctuation(row[TEXT_FIELD].lower())  # Remove punctuation
         if subj is not None and len(text) > 0:
             dialogs.append(text)
 
@@ -35,7 +36,7 @@ def plot_dialogs_mean_by_writer(dialogs_length_per_writer):
     values = list(dialogs_length_per_writer.values())
 
     # Round all values to integers
-    values = [round(value) for value in values]
+    values = round_list(values, 0)
 
     fig, ax = plt.subplots(figsize=(10, 6))  # Adjust the figure size as needed
     bars = plt.bar(range(len(dialogs_length_per_writer)), values, tick_label=names)
@@ -66,11 +67,12 @@ def mean_dialog_length(directory):
                     dialogs = get_dialogs_from_file(file)
                     dialogs_length = get_dialogs_length(dialogs)
                     total_dialogs_length.append(dialogs_length)
+
             # Flatten total_dialogs_length
-            total_dialogs_length = list(chain.from_iterable(total_dialogs_length))
+            total_dialogs_length = flatten(total_dialogs_length)
             # Calculate the mean of the dialogs length
-            average = sum(total_dialogs_length) / len(total_dialogs_length)
-            dialogs_length_per_writer.setdefault(current_dir, average)
+            avg = average(total_dialogs_length)
+            dialogs_length_per_writer.setdefault(current_dir, avg)
 
     plot_dialogs_mean_by_writer(dialogs_length_per_writer)
 
