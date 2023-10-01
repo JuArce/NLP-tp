@@ -50,7 +50,8 @@ def plot_dialogs_mean_by_writer(dialogs_length_per_writer):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(value), ha='center')
 
     plt.title("Mean dialog length by writer")
-    plt.show()
+    # plt.show()
+    plt.savefig(f"../output/mean_dialog_length_by_writer.png")
 
 
 def mean_dialog_length(directory):

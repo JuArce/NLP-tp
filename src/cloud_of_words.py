@@ -58,7 +58,8 @@ def plot_cloud(words, title):
     plt.title(title)
     plt.tight_layout(pad=0)
 
-    plt.show()
+    # plt.show()
+    plt.savefig(f"../output/{title}.png")
 
 
 #    This function walks on the directory and sub-directories
