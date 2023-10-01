@@ -28,7 +28,7 @@ def get_dialogs_from_file(file):
 
 def get_dialogs_length(dialogs):
     # Return the length of each dialog
-    return [len(dialog) for dialog in dialogs]
+    return [len(dialog.split(" ")) for dialog in dialogs]
 
 
 def plot_dialogs_mean_by_writer(dialogs_length_per_writer):
