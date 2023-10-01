@@ -12,7 +12,7 @@ CHARACTER_FIELD = "speaker/title"
 
 
 def get_dialogs_from_file(file):
-    data = list(chain.from_iterable(json.load(file)))
+    data = flatten(json.load(file))
     dialogs = []
 
     for row in data:
