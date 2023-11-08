@@ -8,6 +8,7 @@ matplotlib = "*"
 wordcloud = "*"
 pandas = "*"
 numpy = "*"
+scikit-learn = "*"
 
 [dev-packages]
 
