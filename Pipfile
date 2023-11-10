@@ -9,6 +9,8 @@ wordcloud = "*"
 pandas = "*"
 numpy = "*"
 scikit-learn = "*"
+transformers = "*"
+torch = "*"
 
 [dev-packages]
 
