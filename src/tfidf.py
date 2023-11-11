@@ -7,6 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import label_binarize
 import matplotlib.pyplot as plt
 
@@ -61,6 +62,23 @@ def tfidf(directory):
 
     y_pred = model.predict(X_test)
 
+    accuracy = accuracy_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred, average='macro')
+    precision = precision_score(y_test, y_pred, average='macro')
+    f1 = f1_score(y_test, y_pred, average='macro')
+
+    print("Test metrics")
+    print("Accuracy:", accuracy)
+    print("Recall:", recall)
+    print("Precision:", precision)
+    print("F1:", f1)
+    print("-------------------------------------")
+    print("Train metrics")
+    print("Accuracy:", accuracy_score(y_train, model.predict(X_train)))
+    print("Recall:", recall_score(y_train, model.predict(X_train), average='macro'))
+    print("Precision:", precision_score(y_train, model.predict(X_train), average='macro'))
+    print("F1:", f1_score(y_train, model.predict(X_train), average='macro'))
+
     cm = confusion_matrix(y_test, y_pred)
 
     fig, ax = plt.subplots()
@@ -96,18 +114,18 @@ def tfidf(directory):
         fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
 
-    # Plot of a ROC curve for a specific class
+    # Plot of a ROC curve for all classes
+    plt.figure()
     for i in range(n_classes):
-        plt.figure()
-        plt.plot(fpr[i], tpr[i], label='ROC curve (area = %0.2f)' % roc_auc[i])
-        plt.plot([0, 1], [0, 1], 'k--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver operating characteristic for author ' + idx2authors[i])
-        plt.legend(loc="lower right")
-        plt.show()
+        plt.plot(fpr[i], tpr[i], label='ROC curve for author %s (area = %0.2f)' % (idx2authors[i], roc_auc[i]))
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic for all authors')
+    plt.legend(loc="lower right")
+    plt.show()
 
 
 """
