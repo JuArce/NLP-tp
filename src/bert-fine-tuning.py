@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 import torch
 from transformers import BertTokenizer, BertModel
+from sklearn.metrics import confusion_matrix, roc_curve, auc, accuracy_score, precision_score, recall_score, f1_score
 from torch import nn
 from torch.optim import Adam
 from tqdm import tqdm
 import datetime
+import matplotlib.pyplot as plt
 
 from models import BertClassifier, Dataset, init_defaults
 from utils import load_json_files
@@ -54,7 +56,6 @@ df.to_csv(f'{MODEL_DIR}/df.csv', index=False)
 #count text per author
 df.groupby('author').count()    
 
-init_defaults(df, BASE_MODEL)
 
 def train(model, train_data, val_data, learning_rate, epochs):
 
@@ -69,11 +70,13 @@ def train(model, train_data, val_data, learning_rate, epochs):
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr= learning_rate)
 
+    device = None
+
     if use_cuda or use_mps:
             if use_mps:
-                model.to(device)
-                criterion = criterion.cuda()
                 device = torch.device('mps' if use_mps else 'cpu')
+                model.to(device)
+                # criterion = criterion.cuda()
             if use_cuda:
                 device = torch.device("cuda" if use_cuda else "cpu")
                 model = model.cuda()
@@ -129,17 +132,25 @@ def evaluate(model, test_data):
 
     test = Dataset(test_data)
 
-    test_dataloader = torch.utils.data.DataLoader(test, batch_size=2)
+    test_dataloader = torch.utils.data.DataLoader(test, batch_size=1)
 
     use_cuda = torch.cuda.is_available()
-    #use_cuda = False
-    device = torch.device("cuda" if use_cuda else "cpu")
+    use_mps = torch.backends.mps.is_available() and torch.backends.mps.is_built()
 
-    if use_cuda:
+    device = None    
 
-        model = model.cuda()
+    if use_cuda or use_mps:
+            if use_mps:
+                model.to(device)
+                device = torch.device('mps' if use_mps else 'cpu')
+            if use_cuda:
+                device = torch.device("cuda" if use_cuda else "cpu")
+                model = model.cuda()
 
     total_acc_test = 0
+    y_pred = []
+    y_pred_prob = []
+    y_true = []
     with torch.no_grad():
 
         for test_input, test_label in test_dataloader:
@@ -151,8 +162,12 @@ def evaluate(model, test_data):
               output = model(input_id, mask)
               acc = (output.argmax(dim=1) == test_label).sum().item()
               total_acc_test += acc
+              y_pred.append(output.argmax(dim=1).item())
+              y_pred_prob.append(output.softmax(dim=1).squeeze(0).cpu().numpy())
+              y_true.append(test_label.item())
     
     print(f'Test Accuracy: {total_acc_test / len(test_data): .3f}')
+    return y_pred, y_pred_prob, y_true
 
 np.random.seed(RANDOM_SEED)
 df_train, df_val, df_test = np.split(df.sample(frac=1, random_state=RANDOM_SEED), 
@@ -165,10 +180,76 @@ df_train.to_csv(f'{MODEL_DIR}/train.csv', index=False)
 df_val.to_csv(f'{MODEL_DIR}/val.csv', index=False)
 df_test.to_csv(f'{MODEL_DIR}/test.csv', index=False)
 
+tokenizer, authors, author2idx, idx2author, model = init_defaults(df, BASE_MODEL)
 EPOCHS = EPOCHS
 model = BertClassifier()
 LR = LEARNING_RATE
               
 train(model, df_train, df_val, LR, EPOCHS)
 
-evaluate(model, df_test)
+y_pred, y_pred_prob, y_true = evaluate(model, df_test)
+
+
+# Confusion matrix
+cm = confusion_matrix(y_true, y_pred)
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+plt.colorbar()
+plt.tight_layout()
+plt.ylabel('True label')
+plt.xlabel('Predicted label')
+#plot ticks
+tick_marks = np.arange(len(authors))
+plt.xticks(tick_marks, authors, rotation=45)
+plt.yticks(tick_marks, authors)
+
+plt.show()
+
+
+n_classes = len(authors)
+
+classes = [i for i in range(n_classes)]
+
+# _, y_pred_prob, y_true = eval(model, df_test)
+
+
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
+for i in range(n_classes):
+    _y_true = np.array(y_true) == i
+    _y_true = _y_true.astype(int)
+    _y_pred_prob = np.array(y_pred_prob)[:, i]
+    fpr[i], tpr[i], _ = roc_curve(_y_true, _y_pred_prob)
+    roc_auc[i] = auc(fpr[i], tpr[i])
+
+
+plt.figure(figsize=(8, 8))
+lw = 2
+
+for i in range(n_classes):
+    plt.plot(fpr[i], tpr[i], "-", lw=lw,
+             label='ROC curve of class {0} (area = {1:0.2f})'
+             ''.format(authors[i], roc_auc[i]))
+
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlim([-0.05, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic for all authors')
+plt.legend(loc="lower right")
+plt.show()
+
+print("Test Metrics")
+print('Accuracy: {:.2f}'.format(accuracy_score(y_true, y_pred)))
+print('Precision: {:.2f}'.format(precision_score(y_true, y_pred, average='macro')))
+print('Recall: {:.2f}'.format(recall_score(y_true, y_pred, average='macro')))
+print('F1: {:.2f}'.format(f1_score(y_true, y_pred, average='macro')))
+
+# y_pred, y_pred_prob, y_true = eval(model, df_train)
+
+print("Train Metrics")
+print('Accuracy: {:.2f}'.format(accuracy_score(y_true, y_pred)))
+print('Precision: {:.2f}'.format(precision_score(y_true, y_pred, average='macro')))
+print('Recall: {:.2f}'.format(recall_score(y_true, y_pred, average='macro')))
+print('F1: {:.2f}'.format(f1_score(y_true, y_pred, average='macro')))

@@ -91,7 +91,7 @@ def bert_no_fine_tuning(directory):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
 
-    model = LogisticRegression(max_iter=10000)
+    model = LogisticRegression(max_iter=10000, C=1)
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
@@ -132,6 +132,7 @@ def bert_no_fine_tuning(directory):
 
     y_pred_prob = model.predict_proba(X_test)
     y_true = y_test
+
     authors2idx = {author:idx for idx, author in enumerate(authors)}
     #covert author names to numbers
     y_true = [authors2idx[author] for author in y_true]
@@ -156,12 +157,13 @@ def bert_no_fine_tuning(directory):
         plt.plot(fpr[i], tpr[i], "-", lw=lw,
                 label='ROC curve of class {0} (area = {1:0.2f})'
                 ''.format(authors[i], roc_auc[i]))
-
+                
+    plt.plot([0, 1], [0, 1], 'k--')
     plt.xlim([-0.05, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('ROC for Author Classification')
+    plt.title('Receiver operating characteristic for all authors')
     plt.legend(loc="lower right")
     plt.show()
 
