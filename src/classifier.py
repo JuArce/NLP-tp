@@ -44,7 +44,6 @@ class Dataset(torch.utils.data.Dataset):
 
         return batch_texts, batch_y
 
-#https://towardsdatascience.com/text-classification-with-bert-in-pytorch-887965e5820f
 class BertClassifier(nn.Module):
 
     def __init__(self):

@@ -11,55 +11,26 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.preprocessing import label_binarize
 import matplotlib.pyplot as plt
 
-from utils import flatten, remove_punctuation, average, round_list
+from utils import flatten, load_json_files, apply_balance
 
-def load_json_files(directory):
-    data = []
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith('.json'):
-                author = os.path.basename(root)
-                with open(os.path.join(root, file)) as f:
-                    dialogs = flatten(json.load(f))
-                    for dialog in dialogs:
-                        if dialog['head_type'] == 'speaker/title':
-                            data.append({'author': author, 'text': dialog['text']})
-    return pd.DataFrame(data)
+def balance_classes(df, method='upsampling', random_seed=42):
+    if method == 'upsampling':
+        max_class_count = df['author'].value_counts().max()
+        df = df.groupby('author').apply(lambda x: x.sample(max_class_count, replace=True, random_state=random_seed)).reset_index(drop=True)
+    elif method == 'downsampling':
+        min_class_count = df['author'].value_counts().min()
+        df = df.groupby('author').apply(lambda x: x.sample(min_class_count, random_state=random_seed)).reset_index(drop=True)
+    return df
 
-def tfidf(directory):
-    df = load_json_files(directory)
+def train_test_split_data(X, y, test_size=0.1, random_state=42):
+    return train_test_split(X, y, test_size=test_size, random_state=random_state)
 
-    df.dropna(inplace=True)
-    df.reset_index(drop=True, inplace=True)
-
-    # Balance classes if necessary
-    BALANCE_CLASSES = True
-    BALANCED_METHOD = 'upsampling' # or 'downsampling'
-    RANDOM_SEED = 42
-
-    if BALANCE_CLASSES:
-        if BALANCED_METHOD == 'upsampling':
-            max_class_count = df['author'].value_counts().max()
-            df = df.groupby('author').apply(lambda x: x.sample(max_class_count, replace=True, random_state=RANDOM_SEED)).reset_index(drop=True)
-        elif BALANCED_METHOD == 'downsampling':
-            min_class_count = df['author'].value_counts().min()
-            df = df.groupby('author').apply(lambda x: x.sample(min_class_count, random_state=RANDOM_SEED)).reset_index(drop=True)
-
-    print(df.groupby('author').count())
-
-    vectorizer = TfidfVectorizer()
-    X = vectorizer.fit_transform(df['text'])
-
-    authors2idx = {author: idx for idx, author in enumerate(df['author'].unique())}
-    idx2authors = {idx: author for author, idx in authors2idx.items()}
-
-    y = df['author'].map(authors2idx).values
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
-
-    model = LogisticRegression(max_iter=10000)
+def train_logistic_regression(X_train, y_train, max_iter=10000):
+    model = LogisticRegression(max_iter=max_iter)
     model.fit(X_train, y_train)
+    return model
 
+def evaluate_model(model, X_train, X_test, y_train, y_test):
     y_pred = model.predict(X_test)
 
     accuracy = accuracy_score(y_test, y_pred)
@@ -79,6 +50,9 @@ def tfidf(directory):
     print("Precision:", precision_score(y_train, model.predict(X_train), average='macro'))
     print("F1:", f1_score(y_train, model.predict(X_train), average='macro'))
 
+    return accuracy, recall, precision, f1
+
+def plot_confusion_matrix(y_test, y_pred, idx2authors):
     cm = confusion_matrix(y_test, y_pred)
 
     fig, ax = plt.subplots()
@@ -100,11 +74,11 @@ def tfidf(directory):
 
     plt.show()
 
+def plot_roc_curve(y, y_test, y_score, idx2authors, authors2idx):
     # Binarize the output
     y = label_binarize(y, classes=[*range(len(authors2idx))])
     n_classes = y.shape[1]
     y_test = label_binarize(y_test, classes=[*range(len(authors2idx))])
-    y_score = model.decision_function(X_test)
 
     # Compute ROC curve and ROC area for each class
     fpr = dict()
@@ -127,6 +101,39 @@ def tfidf(directory):
     plt.legend(loc="lower right")
     plt.show()
 
+def tfidf(directory):
+    df = load_json_files(directory)
+
+    df.dropna(inplace=True)
+    df.reset_index(drop=True, inplace=True)
+
+    # Balance classes if necessary
+    BALANCE_CLASSES = True
+    BALANCED_METHOD = 'upsampling' # or 'downsampling'
+    RANDOM_SEED = 42
+
+    if BALANCE_CLASSES:
+        df = apply_balance(df, method=BALANCED_METHOD, random_seed=RANDOM_SEED)
+
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(df['text'])
+
+    authors2idx = {author: idx for idx, author in enumerate(df['author'].unique())}
+    idx2authors = {idx: author for author, idx in authors2idx.items()}
+
+    y = df['author'].map(authors2idx).values
+
+    X_train, X_test, y_train, y_test = train_test_split_data(X, y, test_size=0.1, random_state=42)
+
+    model = train_logistic_regression(X_train, y_train)
+
+    accuracy, recall, precision, f1 = evaluate_model(model, X_train, X_test, y_train, y_test)
+
+    plot_confusion_matrix(y_test, model.predict(X_test), idx2authors)
+
+    y_score = model.decision_function(X_test)
+
+    plot_roc_curve(y, y_test, y_score, idx2authors, authors2idx)
 
 """
     Main function
