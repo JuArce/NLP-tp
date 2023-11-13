@@ -31,3 +31,12 @@ def load_json_files(directory):
                         if dialog['head_type'] == 'speaker/title':
                             data.append({'author': author, 'text': dialog['text']})
     return pd.DataFrame(data)
+
+def apply_balance(BALANCED_METHOD, RANDOM_SEED, df):
+    if BALANCED_METHOD == 'upsampling':
+        max_class_count = df['author'].value_counts().max()
+        df = df.groupby('author').apply(lambda x: x.sample(max_class_count, replace=True, random_state=RANDOM_SEED)).reset_index(drop=True)
+    elif BALANCED_METHOD == 'downsampling':
+        min_class_count = df['author'].value_counts().min()
+        df = df.groupby('author').apply(lambda x: x.sample(min_class_count, random_state=RANDOM_SEED)).reset_index(drop=True)
+    return df
