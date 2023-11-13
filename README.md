@@ -25,12 +25,12 @@ A continuación se listan los links a los archivos:
 
 ```json
 {
-"head_type":"speaker/title",
-"Head_text": {
-  "speaker/title":"WEST"
-},
-"text":"Three cases in two years? Who was  she handling, the Rosenbergs?”
-},
+  "head_type": "speaker/title",
+  "Head_text": {
+    "speaker/title":"WEST"
+  },
+  "text": "Three cases in two years? Who was she handling, the Rosenbergs?”
+}
 ```
 
 ## Análisis
@@ -55,9 +55,9 @@ Los modelos usados son los siguientes:
 
 Las métricas usadas son las siguientes:
 
-- [Accuracy](/src/metrics.py)
-- [F1](/src/metrics.py)
-- [Precision](/src/metrics.py)
-- [Recall](/src/metrics.py)
+- Accuracy
+- F1-Score
+- Precisión
+- Recall
 
 ------
